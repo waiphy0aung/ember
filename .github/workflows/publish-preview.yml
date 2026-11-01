@@ -27,6 +27,9 @@ jobs:
       github.event.workflow_run.conclusion == 'success' &&
       github.event.workflow_run.event == 'pull_request' &&
       github.event.workflow_run.head_repository.full_name == github.repository
+    # The preview key lives only in this environment, which accepts the main branch only
+    # (workflow_run jobs always run as main).
+    environment: preview
     runs-on: ubuntu-latest
     timeout-minutes: 15
 

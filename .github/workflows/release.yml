@@ -118,6 +118,8 @@ jobs:
     name: Sign and publish (apksigner only)
     needs: [build, inspect]
     if: github.ref == 'refs/heads/main'
+    # The release key lives only in this environment, which accepts the main branch only.
+    environment: release
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:

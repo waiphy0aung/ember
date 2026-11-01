@@ -30,6 +30,7 @@ The full specification is the "Ember — Requirements" doc (tabs: Requirements, 
   - `release.yml` runs only on main in three jobs on separate machines: `build` (Gradle, no secrets), `inspect` (no secrets) and `sign-and-publish` (apksigner only, **release key**: `EMBER_KEYSTORE_BASE64`, `EMBER_SIGNING_PASSWORD`, alias `ember`). The version always comes from main's `VERSION` plus the run number, never from build output.
   - Raising `targetSdk` also means raising `EXPECTED_TARGET_SDK` in both signing workflows.
   - Signing jobs use pinned build-tools 36.0.0 and must never run Gradle or any project build code.
+  - Keys live in GitHub Environments limited to `main`: `release` (release key) and `preview` (preview key); no signing secret exists at repository level. Never remove `environment:` from a signing job.
   - Never give a workflow that runs pull request code access to a secret. Claude cannot read or write these secrets; only the owner can. Never commit a keystore or password.
 - Versions: CI sets `EMBER_VERSION_CODE` and `EMBER_VERSION_NAME`.
 - Claude's cloud workspace may not be able to download Gradle or the Android SDK; if a local build fails on network, rely on CI and read its logs with `gh run view --log-failed`.
