@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Ember</string>
+    <string name="hearth_title">Ember</string>
+    <string name="hearth_empty_title">No flames burning</string>
+    <string name="hearth_empty_body">The hearth is being built. Flames arrive in the next builds.</string>
+    <string name="hearth_version">Version %1$s</string>
+</resources>

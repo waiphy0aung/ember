@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Only the window colour lives here; everything else is drawn by Compose. -->
+    <style name="Theme.Ember" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@color/ember_night</item>
+    </style>
+</resources>
