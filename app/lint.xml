@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Warnings fail the build. Only checks that report "a newer version exists" are turned off,
+    because Dependabot proposes those updates as their own pull requests.
+-->
+<lint>
+    <issue id="GradleDependency" severity="ignore" />
+    <issue id="NewerVersionAvailable" severity="ignore" />
+    <issue id="AndroidGradlePluginVersion" severity="ignore" />
+    <issue id="OldTargetApi" severity="ignore" />
+</lint>

@@ -21,9 +21,13 @@ The full specification is the "Ember — Requirements" doc (tabs: Requirements, 
 ## Build and check
 
 - JDK 21. Gradle wrapper (9.7.1) with Android Gradle Plugin 9 (built-in Kotlin).
-- `./gradlew :app:lintRelease :app:testDebugUnitTest :app:assemblePreview` is what CI runs on every pull request.
+- `./gradlew check :app:assemblePreview` is what CI runs on every pull request (lint with warnings as errors, unit tests, Kotlin warnings as errors).
 - Build types: `debug` (`.debug`), `release` (the real app), `preview` (`.preview`, "Ember Preview", separate data, violet icon).
-- Signing: CI decodes the `EMBER_KEYSTORE_BASE64` secret and passes `EMBER_KEYSTORE_PATH`, `EMBER_KEYSTORE_PASSWORD` and `EMBER_KEY_PASSWORD` (both from the `EMBER_SIGNING_PASSWORD` secret) and `EMBER_KEY_ALIAS=ember`. Claude cannot read or write these secrets; only the owner can. Without them, release and preview fall back to the debug key (local builds only). Never commit a keystore or password.
+- Signing, three workflows:
+  - `ci.yml` runs pull request code with **no secrets** and a read-only token, and uploads an unsigned Ember Preview.
+  - `publish-preview.yml` runs main's copy via `workflow_run`, signs that APK with the **preview-only key** (`EMBER_PREVIEW_KEYSTORE_BASE64`, `EMBER_PREVIEW_SIGNING_PASSWORD`, alias `ember-preview`) and publishes a pre-release.
+  - `release.yml` runs only on main, signs with the **release key** (`EMBER_KEYSTORE_BASE64`, `EMBER_SIGNING_PASSWORD`, alias `ember`) and publishes the release.
+  - Never give a workflow that runs pull request code access to a secret. Claude cannot read or write these secrets; only the owner can. Never commit a keystore or password.
 - Versions: CI sets `EMBER_VERSION_CODE` and `EMBER_VERSION_NAME`.
 - Claude's cloud workspace may not be able to download Gradle or the Android SDK; if a local build fails on network, rely on CI and read its logs with `gh run view --log-failed`.
 

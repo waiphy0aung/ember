@@ -5,6 +5,12 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.DpSize
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 
 /** Ember's colours. Screens read them from [EmberTheme.colors]; no hex values outside this file. */
 @Immutable
@@ -21,15 +27,58 @@ data class EmberColors(
     val logLight: Color = Color(0xFF5A4134),
 )
 
-private val LocalEmberColors = staticCompositionLocalOf { EmberColors() }
+/** Spacing steps. Screens use these instead of raw dp values. */
+@Immutable
+data class EmberSpacing(
+    val xs: Dp = 4.dp,
+    val s: Dp = 8.dp,
+    val m: Dp = 16.dp,
+    val l: Dp = 24.dp,
+    val xl: Dp = 28.dp,
+)
 
-/** Wraps every screen so it can read Ember's colours. */
+/** Text styles without colour; screens add the colour from [EmberTheme.colors]. */
+@Immutable
+data class EmberType(
+    val display: TextStyle = TextStyle(fontSize = 28.sp, fontWeight = FontWeight.Bold),
+    val title: TextStyle = TextStyle(fontSize = 20.sp, fontWeight = FontWeight.SemiBold),
+    val body: TextStyle = TextStyle(fontSize = 15.sp),
+    val caption: TextStyle = TextStyle(fontSize = 13.sp),
+)
+
+/** Fixed sizes of Ember's drawn pieces. */
+@Immutable
+data class EmberSizes(
+    val unlitLogs: DpSize = DpSize(width = 180.dp, height = 72.dp),
+)
+
+private val LocalEmberColors = staticCompositionLocalOf { EmberColors() }
+private val LocalEmberSpacing = staticCompositionLocalOf { EmberSpacing() }
+private val LocalEmberType = staticCompositionLocalOf { EmberType() }
+private val LocalEmberSizes = staticCompositionLocalOf { EmberSizes() }
+
+/** Wraps every screen so it can read Ember's colours, spacing, type and sizes. */
 @Composable
 fun EmberTheme(content: @Composable () -> Unit) {
-    CompositionLocalProvider(LocalEmberColors provides EmberColors(), content = content)
+    CompositionLocalProvider(
+        LocalEmberColors provides EmberColors(),
+        LocalEmberSpacing provides EmberSpacing(),
+        LocalEmberType provides EmberType(),
+        LocalEmberSizes provides EmberSizes(),
+        content = content,
+    )
 }
 
 object EmberTheme {
     val colors: EmberColors
         @Composable get() = LocalEmberColors.current
+
+    val spacing: EmberSpacing
+        @Composable get() = LocalEmberSpacing.current
+
+    val type: EmberType
+        @Composable get() = LocalEmberType.current
+
+    val sizes: EmberSizes
+        @Composable get() = LocalEmberSizes.current
 }

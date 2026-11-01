@@ -1,0 +1,89 @@
+name: Publish Ember Preview
+
+# Triggered after CI succeeds on a pull request. GitHub always runs this file
+# as it is on main, so a pull request cannot change what happens here. The APK
+# it signs was built from pull request code, so it is signed with the
+# preview-only key, never the release key.
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+
+permissions:
+  actions: read          # download the APK from the CI run
+  contents: write        # create the pre-release
+  pull-requests: write   # comment the link on the pull request
+
+jobs:
+  publish:
+    name: Sign and publish Ember Preview
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'pull_request' &&
+      github.event.workflow_run.head_repository.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Download the unsigned preview
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_ID: ${{ github.event.workflow_run.id }}
+        run: gh run download "$RUN_ID" --repo "$GITHUB_REPOSITORY" --name ember-preview-unsigned --dir unsigned
+
+      - name: Sign with the preview key
+        env:
+          PREVIEW_KEYSTORE_BASE64: ${{ secrets.EMBER_PREVIEW_KEYSTORE_BASE64 }}
+          PREVIEW_PASSWORD: ${{ secrets.EMBER_PREVIEW_SIGNING_PASSWORD }}
+        run: |
+          if [ -z "$PREVIEW_KEYSTORE_BASE64" ] || [ -z "$PREVIEW_PASSWORD" ]; then
+            echo "::warning::Preview signing secrets are missing; nothing published."
+            exit 0
+          fi
+          echo "$PREVIEW_KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/preview.jks"
+          apksigner="$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -n 1)/apksigner"
+          apk="$(find unsigned -type f -name '*.apk' | head -n 1)"
+          "$apksigner" sign --ks "$RUNNER_TEMP/preview.jks" --ks-key-alias ember-preview \
+            --ks-pass env:PREVIEW_PASSWORD --key-pass env:PREVIEW_PASSWORD \
+            --out ember-preview.apk "$apk"
+          "$apksigner" verify ember-preview.apk
+          echo "SIGNED=true" >> "$GITHUB_ENV"
+
+      - name: Publish pre-release and comment
+        if: env.SIGNED == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_NUMBER: ${{ github.event.workflow_run.run_number }}
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+          HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
+        run: |
+          grep -Eqx '[0-9]+\.[0-9]+' VERSION || exit 1
+          [[ "$RUN_NUMBER" =~ ^[0-9]+$ ]] || exit 1
+          version="$(cat VERSION).${RUN_NUMBER}"
+          pr_number=$(gh api "repos/${GITHUB_REPOSITORY}/pulls?state=open&per_page=100" \
+            --jq "map(select(.head.sha == \"${HEAD_SHA}\")) | .[0].number // empty")
+          [[ "$pr_number" =~ ^[0-9]+$ ]] || { echo "::warning::No open pull request for this commit."; exit 0; }
+          tag="preview-pr${pr_number}-${RUN_NUMBER}"
+          if gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "Preview $tag already exists; nothing to do."
+            exit 0
+          fi
+          mv ember-preview.apk "ember-preview-${version}.apk"
+          gh release create "$tag" "ember-preview-${version}.apk" \
+            --repo "$GITHUB_REPOSITORY" \
+            --prerelease \
+            --target "$HEAD_SHA" \
+            --title "Ember Preview ${version} (PR #${pr_number})" \
+            --notes "Preview build for pull request #${pr_number}. Installs as Ember Preview, beside your real Ember, with its own separate data."
+          gh pr comment "$pr_number" --repo "$GITHUB_REPOSITORY" \
+            --body "Ember Preview **${version}-preview** is ready to try: https://github.com/${GITHUB_REPOSITORY}/releases/tag/${tag}"
+
+      - name: Remove the decoded key
+        if: always()
+        run: rm -f "$RUNNER_TEMP/preview.jks"

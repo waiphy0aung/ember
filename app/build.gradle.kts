@@ -48,11 +48,13 @@ android {
             }
         }
         // Ember Preview: same as release, installed beside it with its own separate data.
+        // Built unsigned from pull requests; publish-preview.yml signs it with the preview-only key.
         create("preview") {
             initWith(getByName("release"))
             applicationIdSuffix = ".preview"
             versionNameSuffix = "-preview"
             matchingFallbacks += "release"
+            signingConfig = null
         }
     }
 
@@ -69,17 +71,23 @@ android {
     lint {
         abortOnError = true
         checkReleaseBuilds = true
+        warningsAsErrors = true
+        lintConfig = file("lint.xml")
+    }
+}
+
+kotlin {
+    compilerOptions {
+        allWarningsAsErrors.set(true)
     }
 }
 
 dependencies {
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.activity.compose)
-    implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.compose.foundation)
     implementation(libs.androidx.compose.ui)
     implementation(libs.androidx.compose.ui.tooling.preview)
-    implementation(libs.androidx.lifecycle.runtime.compose)
     debugImplementation(libs.androidx.compose.ui.tooling)
 
     testImplementation(libs.junit4)
