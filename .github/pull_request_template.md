@@ -13,7 +13,10 @@
 3. <!-- What you should see. -->
 
 ## Checks
-<!-- Gates: green or red. Reviewer: what it found and what was fixed. -->
+<!-- CI gates: green or red. Then the final verdict of each sub-agent and what was fixed. -->
+- Code review:
+- Testing:
+- Security:
 
 ## Risks
 <!-- Anything that could affect your data, or "None". -->

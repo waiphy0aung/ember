@@ -23,7 +23,7 @@ The full specification is the "Ember — Requirements" doc (tabs: Requirements, 
 - JDK 21. Gradle wrapper (9.7.1) with Android Gradle Plugin 9 (built-in Kotlin).
 - `./gradlew :app:lintRelease :app:testDebugUnitTest :app:assemblePreview` is what CI runs on every pull request.
 - Build types: `debug` (`.debug`), `release` (the real app), `preview` (`.preview`, "Ember Preview", separate data, violet icon).
-- Signing: CI provides `EMBER_KEYSTORE_PATH`, `EMBER_KEYSTORE_PASSWORD`, `EMBER_KEY_ALIAS`, `EMBER_KEY_PASSWORD`. Without them, release and preview fall back to the debug key (local builds only). Never commit a keystore or password.
+- Signing: CI decodes the `EMBER_KEYSTORE_BASE64` secret and passes `EMBER_KEYSTORE_PATH`, `EMBER_KEYSTORE_PASSWORD` and `EMBER_KEY_PASSWORD` (both from the `EMBER_SIGNING_PASSWORD` secret) and `EMBER_KEY_ALIAS=ember`. Claude cannot read or write these secrets; only the owner can. Without them, release and preview fall back to the debug key (local builds only). Never commit a keystore or password.
 - Versions: CI sets `EMBER_VERSION_CODE` and `EMBER_VERSION_NAME`.
 - Claude's cloud workspace may not be able to download Gradle or the Android SDK; if a local build fails on network, rely on CI and read its logs with `gh run view --log-failed`.
 
@@ -31,11 +31,13 @@ The full specification is the "Ember — Requirements" doc (tabs: Requirements, 
 
 1. One small task per branch and pull request: one row of the Writes table, one screen, or one flow. Name it in the PR.
 2. Tests first for rules: flame clock and repository changes come with tests in the same commit.
-3. Fill in every section of the pull request template in plain, non-technical words. The owner reads What changed, Risks and Try it on your phone; they do not read code.
-4. Wait for CI to be green; fix failures rather than skipping checks.
-5. Anything touching the database schema or user data must be listed under Risks and needs the owner's explicit OK in chat.
-6. Commits follow Conventional Commits: `feat(hearth): …`, `fix(sweep): …`, `test(clock): …`, `ci: …`, `docs: …`.
+3. Before opening or updating a pull request, run the three sub-agents in `.claude/agents/` (in parallel; they start fresh and have not seen your work): `code-reviewer`, `test-engineer`, `security-reviewer`. Fix every blocker and major they report, then run them again until all three PASS. Paste their final verdicts into the Checks section, and use the test engineer's phone steps for "Try it on your phone".
+4. Fill in every section of the pull request template in plain, non-technical words. The owner reads What changed, Risks and Try it on your phone; they do not read code.
+5. Wait for CI to be green; fix failures rather than skipping checks.
+6. Anything touching the database schema or user data must be listed under Risks and needs the owner's explicit OK in chat.
+7. The owner's phone is a Samsung Galaxy S24+ (One UI). Samsung puts unused apps to sleep, so alarm and widget changes must be checked against its battery settings.
+8. Commits follow Conventional Commits: `feat(hearth): …`, `fix(sweep): …`, `test(clock): …`, `ci: …`, `docs: …`.
 
 ## Definition of done
 
-Does what the doc says, including other paths and errors · tests pass · no hardcoded text or colours · previews for new components · schema change has migration and test · APK under 5 MB · reviewer Claude has no open findings · owner tried it in Ember Preview · doc updated if a rule changed.
+Does what the doc says, including other paths and errors · tests pass · no hardcoded text or colours · previews for new components · schema change has migration and test · APK under 5 MB · code-reviewer, test-engineer and security-reviewer all PASS · owner tried it in Ember Preview · doc updated if a rule changed.

@@ -18,9 +18,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     env:
-      EMBER_KEYSTORE_PASSWORD: ${{ secrets.EMBER_KEYSTORE_PASSWORD }}
-      EMBER_KEY_ALIAS: ${{ secrets.EMBER_KEY_ALIAS }}
-      EMBER_KEY_PASSWORD: ${{ secrets.EMBER_KEY_PASSWORD }}
+      # Two secrets, added by the owner in GitHub settings: EMBER_KEYSTORE_BASE64 and EMBER_SIGNING_PASSWORD.
+      EMBER_KEYSTORE_PASSWORD: ${{ secrets.EMBER_SIGNING_PASSWORD }}
+      EMBER_KEY_PASSWORD: ${{ secrets.EMBER_SIGNING_PASSWORD }}
+      EMBER_KEY_ALIAS: ember
 
     steps:
       - name: Checkout
