@@ -1,6 +1,8 @@
 name: Release
 
-# Publishes the real Ember from main only. Runs main's own code, never a pull request's.
+# Publishes the real Ember from main only, in two jobs on separate machines:
+# "build" runs Gradle with no secrets; "sign-and-publish" never runs Gradle and
+# is the only place the release key exists.
 
 on:
   push:
@@ -15,15 +17,16 @@ concurrency:
   group: release
   cancel-in-progress: false
 
-permissions:
-  contents: write   # create the GitHub Release
+permissions: {}
 
 jobs:
-  release:
-    name: Build and publish Ember
+  build:
+    name: Check and build (no secrets)
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 45
+    permissions:
+      contents: read
 
     steps:
       - name: Checkout
@@ -46,15 +49,69 @@ jobs:
           echo "EMBER_VERSION_CODE=$((200000 + GITHUB_RUN_NUMBER))" >> "$GITHUB_ENV"
           echo "EMBER_VERSION_NAME=$(cat VERSION).${GITHUB_RUN_NUMBER}" >> "$GITHUB_ENV"
 
-      - name: Checks and unsigned release build (no secrets here)
+      - name: Checks and unsigned release build
         run: ./gradlew check :app:assembleRelease --stacktrace
 
-      - name: Sign with the release key (no Gradle runs here)
+      - name: Check size budget
+        run: scripts/check-apk-size.sh app/build/outputs/apk/release
+
+      - name: Record the version
+        run: printf '%s\n' "$EMBER_VERSION_NAME" > app/build/outputs/apk/release/version.txt
+
+      - name: Hand the unsigned release to the signing job
+        uses: actions/upload-artifact@v4
+        with:
+          name: ember-release-unsigned
+          path: |
+            app/build/outputs/apk/release/*.apk
+            app/build/outputs/apk/release/version.txt
+          if-no-files-found: error
+          retention-days: 7
+
+  sign-and-publish:
+    name: Sign and publish (no Gradle)
+    needs: build
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write   # create the GitHub Release
+
+    steps:
+      - name: Checkout main (for the signing scripts)
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Set up JDK 21 (for apksigner)
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Install pinned build-tools
+        run: |
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "build-tools;36.0.0" > /dev/null
+          echo "BUILD_TOOLS=$ANDROID_HOME/build-tools/36.0.0" >> "$GITHUB_ENV"
+
+      - name: Get the unsigned release
+        uses: actions/download-artifact@v4
+        with:
+          name: ember-release-unsigned
+          path: unsigned
+
+      - name: Read the version
+        run: |
+          version="$(head -n 1 unsigned/version.txt)"
+          [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "::error::Unexpected version '$version'"; exit 1; }
+          echo "EMBER_VERSION_NAME=$version" >> "$GITHUB_ENV"
+
+      - name: Sign with the release key
         env:
           KEYSTORE_BASE64: ${{ secrets.EMBER_KEYSTORE_BASE64 }}
           SIGNING_PASSWORD: ${{ secrets.EMBER_SIGNING_PASSWORD }}
         run: |
-          apk="$(find app/build/outputs/apk/release -type f -name '*.apk' | head -n 1)"
+          apk="$(find unsigned -type f -name '*.apk' | head -n 1)"
           mkdir -p signed
           scripts/sign-apk.sh "$apk" "signed/ember-${EMBER_VERSION_NAME}.apk" ember io.github.waiphy0aung.ember
 

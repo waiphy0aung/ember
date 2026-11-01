@@ -2,8 +2,8 @@
 <!--
     Warnings fail the build. Checks that only report "a newer version exists" are turned off:
     Dependabot proposes library and plugin updates as their own pull requests, and raising
-    targetSdk is a planned task in the Build plan (it changes app behaviour, so it gets its own
-    pull request and phone test), not a side effect of a lint run.
+    the Android target (targetSdk 36 to 37) is an M0 task in the Build plan tab, done in its own
+    pull request with a phone test because it changes app behaviour.
 -->
 <lint>
     <issue id="GradleDependency" severity="ignore" />

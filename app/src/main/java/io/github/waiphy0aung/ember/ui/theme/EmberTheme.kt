@@ -26,6 +26,7 @@ data class EmberColors(
     val ember: Color = Color(0xFFFF8A3D),
     val emberLight: Color = Color(0xFFFFB37A),
     val emberDeep: Color = Color(0xFFE0582A),
+    val emberCore: Color = Color(0xFFFFE7CF),
     val log: Color = Color(0xFF4A362C),
     val logLight: Color = Color(0xFF5A4134),
 )

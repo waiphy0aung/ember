@@ -2,7 +2,7 @@
 
 Ember is a personal Android todo app where every task is a flame that burns out if you don't act on it. The owner does not write code: Claude builds everything, the owner tests builds on their phone and merges.
 
-The full specification is the "Ember — Requirements" doc (tabs: Requirements, Data model, Flows, Architecture, Coding standards, Operations): https://claude.ai/artifact/H725vpLEhzFfvmssEH7NWk. When this file and the doc disagree, the doc wins; fix this file in the same pull request.
+The full specification is the "Ember — Requirements" doc (tabs: Requirements, Data model, Flows, Architecture, Coding standards, Operations, Build plan): https://claude.ai/artifact/H725vpLEhzFfvmssEH7NWk. When this file and the doc disagree, the doc wins; fix this file in the same pull request.
 
 ## Non-negotiables
 
@@ -27,7 +27,8 @@ The full specification is the "Ember — Requirements" doc (tabs: Requirements, 
   - Gradle never signs anything and never sees a key: release and preview are built unsigned, then `scripts/sign-apk.sh` signs them with apksigner after checking the package name and that there is no internet permission.
   - `ci.yml` runs pull request code with **no secrets** and a read-only token, and uploads an unsigned Ember Preview with its version name.
   - `publish-preview.yml` runs main's copy via `workflow_run`, signs that APK with the **preview-only key** (`EMBER_PREVIEW_KEYSTORE_BASE64`, `EMBER_PREVIEW_SIGNING_PASSWORD`, alias `ember-preview`) and publishes a pre-release.
-  - `release.yml` runs only on main, signs with the **release key** (`EMBER_KEYSTORE_BASE64`, `EMBER_SIGNING_PASSWORD`, alias `ember`) and publishes the release.
+  - `release.yml` runs only on main in two jobs on separate machines: `build` runs Gradle with no secrets; `sign-and-publish` never runs Gradle and signs with the **release key** (`EMBER_KEYSTORE_BASE64`, `EMBER_SIGNING_PASSWORD`, alias `ember`).
+  - Signing jobs use pinned build-tools 36.0.0 and must never run Gradle or any project build code.
   - Never give a workflow that runs pull request code access to a secret. Claude cannot read or write these secrets; only the owner can. Never commit a keystore or password.
 - Versions: CI sets `EMBER_VERSION_CODE` and `EMBER_VERSION_NAME`.
 - Claude's cloud workspace may not be able to download Gradle or the Android SDK; if a local build fails on network, rely on CI and read its logs with `gh run view --log-failed`.

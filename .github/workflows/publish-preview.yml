@@ -37,6 +37,11 @@ jobs:
           distribution: temurin
           java-version: 21
 
+      - name: Install pinned build-tools
+        run: |
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "build-tools;36.0.0" > /dev/null
+          echo "BUILD_TOOLS=$ANDROID_HOME/build-tools/36.0.0" >> "$GITHUB_ENV"
+
       - name: Find the pull request and version
         env:
           GH_TOKEN: ${{ github.token }}
@@ -71,8 +76,13 @@ jobs:
           HAS_KEY: ${{ secrets.EMBER_PREVIEW_KEYSTORE_BASE64 != '' && secrets.EMBER_PREVIEW_SIGNING_PASSWORD != '' }}
         run: |
           if [ "$HAS_KEY" != "true" ]; then
-            gh pr comment "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" \
-              --body "No Ember Preview for this change yet: the preview signing secrets are missing in the repository settings."
+            message="No Ember Preview for this change yet: the preview signing secrets are missing in the repository settings."
+            already=$(gh api "repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/comments?per_page=100" \
+              --jq "[.[] | select(.body == \"${message}\")] | length")
+            if [ "$already" = "0" ]; then
+              gh pr comment "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --body "$message"
+            fi
+            echo "::warning::$message"
             echo "SKIP=true" >> "$GITHUB_ENV"
           fi
 
