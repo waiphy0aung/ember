@@ -19,7 +19,7 @@ Run `git fetch origin main` and `git diff origin/main...HEAD`, and read every ch
 7. **Dependencies.** Each new library: why it is needed, whether it is maintained, what permissions and network code it brings.
 8. **Workflows.** No `pull_request_target`, no secrets printed, secrets only in steps that need them, least-privilege `permissions`, third-party actions from known publishers.
 9. **Android backup.** `allowBackup` stays `false` and `data_extraction_rules.xml` keeps excluding every domain from cloud backup; phone-to-phone transfer is allowed (Claude's proposed default, waiting for the owner to confirm). Any change here is a major.
-10. **Workflows that run pull request code** (`ci.yml`) get no secrets and a read-only token. Signing happens only in workflows triggered from `main` (`publish-preview.yml` via `workflow_run`, `release.yml`). The release key never signs anything built from a pull request.
+10. **Workflows that run pull request code** (`ci.yml`) get no secrets and a read-only token. Signing happens only in workflows triggered from `main` (`publish-preview.yml` via `workflow_run`, `release.yml`). The release key never signs anything built from a pull request. Gradle never sees any key: signing happens only in `scripts/sign-apk.sh`, which checks the package name and refuses an APK with internet access.
 
 ## Output
 

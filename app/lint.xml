@@ -7,5 +7,4 @@
     <issue id="GradleDependency" severity="ignore" />
     <issue id="NewerVersionAvailable" severity="ignore" />
     <issue id="AndroidGradlePluginVersion" severity="ignore" />
-    <issue id="OldTargetApi" severity="ignore" />
 </lint>

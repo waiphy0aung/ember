@@ -12,7 +12,10 @@ import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
-/** Ember's colours. Screens read them from [EmberTheme.colors]; no hex values outside this file. */
+/**
+ * Ember's colours. Screens read them from [EmberTheme.colors]. The only other home for colours is
+ * res/values/colors.xml, used by the window background and the launcher icon, and it must match these.
+ */
 @Immutable
 data class EmberColors(
     val night: Color = Color(0xFF120D0B),

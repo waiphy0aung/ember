@@ -3,8 +3,8 @@
 set -euo pipefail
 folder="${1:?usage: check-apk-size.sh <apk-folder> [max-bytes]}"
 max_bytes="${2:-5242880}"
-if ! [[ "$max_bytes" =~ ^[0-9]+$ ]]; then
-  echo "::error::Budget must be a whole number of bytes, got '$max_bytes'"
+if ! [[ "$max_bytes" =~ ^[0-9]{1,18}$ ]]; then
+  echo "::error::Budget must be a whole number of bytes (at most 18 digits), got '$max_bytes'"
   exit 1
 fi
 found=0

@@ -47,11 +47,16 @@ jobs:
       - name: Check size budget
         run: scripts/check-apk-size.sh app/build/outputs/apk/preview
 
+      - name: Record the version for publishing
+        run: printf '%s\n' "$EMBER_VERSION_NAME" > app/build/outputs/apk/preview/version.txt
+
       - name: Keep the unsigned preview for publishing
         uses: actions/upload-artifact@v4
         with:
           name: ember-preview-unsigned
-          path: app/build/outputs/apk/preview/*.apk
+          path: |
+            app/build/outputs/apk/preview/*.apk
+            app/build/outputs/apk/preview/version.txt
           if-no-files-found: error
           retention-days: 7
 

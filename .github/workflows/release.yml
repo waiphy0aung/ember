@@ -46,31 +46,20 @@ jobs:
           echo "EMBER_VERSION_CODE=$((200000 + GITHUB_RUN_NUMBER))" >> "$GITHUB_ENV"
           echo "EMBER_VERSION_NAME=$(cat VERSION).${GITHUB_RUN_NUMBER}" >> "$GITHUB_ENV"
 
-      - name: Prepare signing key
+      - name: Checks and unsigned release build (no secrets here)
+        run: ./gradlew check :app:assembleRelease --stacktrace
+
+      - name: Sign with the release key (no Gradle runs here)
         env:
           KEYSTORE_BASE64: ${{ secrets.EMBER_KEYSTORE_BASE64 }}
           SIGNING_PASSWORD: ${{ secrets.EMBER_SIGNING_PASSWORD }}
         run: |
-          if [ -z "$KEYSTORE_BASE64" ] || [ -z "$SIGNING_PASSWORD" ]; then
-            echo "::error::A signing secret is missing; a release is never signed with a temporary key."
-            exit 1
-          fi
-          echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/ember.jks"
-
-      - name: Checks and release build
-        env:
-          EMBER_KEYSTORE_PATH: ${{ runner.temp }}/ember.jks
-          EMBER_KEYSTORE_PASSWORD: ${{ secrets.EMBER_SIGNING_PASSWORD }}
-          EMBER_KEY_PASSWORD: ${{ secrets.EMBER_SIGNING_PASSWORD }}
-          EMBER_KEY_ALIAS: ember
-        run: ./gradlew check :app:assembleRelease --stacktrace
-
-      - name: Remove the decoded key
-        if: always()
-        run: rm -f "$RUNNER_TEMP/ember.jks"
+          apk="$(find app/build/outputs/apk/release -type f -name '*.apk' | head -n 1)"
+          mkdir -p signed
+          scripts/sign-apk.sh "$apk" "signed/ember-${EMBER_VERSION_NAME}.apk" ember io.github.waiphy0aung.ember
 
       - name: Check size budget
-        run: scripts/check-apk-size.sh app/build/outputs/apk/release
+        run: scripts/check-apk-size.sh signed
 
       - name: Publish release
         env:
@@ -81,9 +70,7 @@ jobs:
             echo "Release $tag already exists; nothing to do."
             exit 0
           fi
-          apk_name="ember-${EMBER_VERSION_NAME}.apk"
-          cp "$(find app/build/outputs/apk/release -type f -name '*.apk' | head -n 1)" "$apk_name"
-          gh release create "$tag" "$apk_name" \
+          gh release create "$tag" "signed/ember-${EMBER_VERSION_NAME}.apk" \
             --repo "$GITHUB_REPOSITORY" \
             --target "$GITHUB_SHA" \
             --title "Ember ${EMBER_VERSION_NAME}" \

@@ -79,7 +79,7 @@ private const val LOG_TILT_DEGREES = 10f
 
 /** Two crossed, unlit logs: the hearth with no flames yet. */
 @Composable
-fun UnlitLogs(modifier: Modifier = Modifier) {
+private fun UnlitLogs(modifier: Modifier = Modifier) {
     val colors = EmberTheme.colors
     Canvas(modifier) {
         val logSize = Size(

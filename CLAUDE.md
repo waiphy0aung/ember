@@ -24,7 +24,8 @@ The full specification is the "Ember — Requirements" doc (tabs: Requirements, 
 - `./gradlew check :app:assemblePreview` is what CI runs on every pull request (lint with warnings as errors, unit tests, Kotlin warnings as errors).
 - Build types: `debug` (`.debug`), `release` (the real app), `preview` (`.preview`, "Ember Preview", separate data, violet icon).
 - Signing, three workflows:
-  - `ci.yml` runs pull request code with **no secrets** and a read-only token, and uploads an unsigned Ember Preview.
+  - Gradle never signs anything and never sees a key: release and preview are built unsigned, then `scripts/sign-apk.sh` signs them with apksigner after checking the package name and that there is no internet permission.
+  - `ci.yml` runs pull request code with **no secrets** and a read-only token, and uploads an unsigned Ember Preview with its version name.
   - `publish-preview.yml` runs main's copy via `workflow_run`, signs that APK with the **preview-only key** (`EMBER_PREVIEW_KEYSTORE_BASE64`, `EMBER_PREVIEW_SIGNING_PASSWORD`, alias `ember-preview`) and publishes a pre-release.
   - `release.yml` runs only on main, signs with the **release key** (`EMBER_KEYSTORE_BASE64`, `EMBER_SIGNING_PASSWORD`, alias `ember`) and publishes the release.
   - Never give a workflow that runs pull request code access to a secret. Claude cannot read or write these secrets; only the owner can. Never commit a keystore or password.

@@ -6,7 +6,6 @@ plugins {
 // CI passes these; local builds fall back to safe defaults.
 val versionCodeFromCi = providers.environmentVariable("EMBER_VERSION_CODE").map(String::toInt).orElse(1)
 val versionNameFromCi = providers.environmentVariable("EMBER_VERSION_NAME").orElse("0.1.0-local")
-val keystorePath = providers.environmentVariable("EMBER_KEYSTORE_PATH")
 
 android {
     namespace = "io.github.waiphy0aung.ember"
@@ -20,18 +19,6 @@ android {
         versionName = versionNameFromCi.get()
     }
 
-    signingConfigs {
-        create("ember") {
-            // The release key lives only in GitHub Actions secrets and your offline backup.
-            if (keystorePath.isPresent) {
-                storeFile = file(keystorePath.get())
-                storePassword = providers.environmentVariable("EMBER_KEYSTORE_PASSWORD").get()
-                keyAlias = providers.environmentVariable("EMBER_KEY_ALIAS").get()
-                keyPassword = providers.environmentVariable("EMBER_KEY_PASSWORD").get()
-            }
-        }
-    }
-
     buildTypes {
         debug {
             applicationIdSuffix = ".debug"
@@ -41,14 +28,12 @@ android {
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
-            signingConfig = if (keystorePath.isPresent) {
-                signingConfigs.getByName("ember")
-            } else {
-                signingConfigs.getByName("debug")
-            }
+            // Built unsigned. CI signs it with apksigner in a step where no Gradle code runs,
+            // so no build plugin or library ever sees the signing key.
+            signingConfig = null
         }
         // Ember Preview: same as release, installed beside it with its own separate data.
-        // Built unsigned from pull requests; publish-preview.yml signs it with the preview-only key.
+        // Signed by publish-preview.yml with the preview-only key, never the release key.
         create("preview") {
             initWith(getByName("release"))
             applicationIdSuffix = ".preview"
@@ -89,6 +74,4 @@ dependencies {
     implementation(libs.androidx.compose.ui)
     implementation(libs.androidx.compose.ui.tooling.preview)
     debugImplementation(libs.androidx.compose.ui.tooling)
-
-    testImplementation(libs.junit4)
 }
