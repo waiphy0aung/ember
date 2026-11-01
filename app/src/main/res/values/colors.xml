@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Same names and values as EmberColors in ui/theme/EmberTheme.kt (night, ember, emberCore). -->
+    <color name="night">#FF120D0B</color>
+    <color name="ember">#FFFF8A3D</color>
+    <color name="ember_core">#FFFFE7CF</color>
+    <color name="launcher_background">@color/night</color>
+</resources>

@@ -1,0 +1,145 @@
+name: Publish Ember Preview
+
+# Triggered after CI succeeds on a pull request. GitHub always runs this file
+# as it is on main, so a pull request cannot change what happens here. The APK
+# was built from pull request code, so it is inspected first (package, version,
+# target and Ember's permission allowlist) and then signed with the preview-only
+# key, never the release key.
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+
+permissions:
+  actions: read          # download the APK from the CI run
+  contents: write        # create the pre-release
+  pull-requests: write   # comment on the pull request
+
+env:
+  EXPECTED_TARGET_SDK: "36"   # raise together with targetSdk in app/build.gradle.kts
+  BOT_LOGIN: github-actions[bot]
+
+jobs:
+  publish:
+    name: Inspect, sign and publish Ember Preview
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'pull_request' &&
+      github.event.workflow_run.head_repository.full_name == github.repository
+    # The preview key lives only in this environment, which accepts the main branch only
+    # (workflow_run jobs always run as main).
+    environment: preview
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+
+      - name: Set up JDK 21 (for sdkmanager and apksigner)
+        uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5.7.0
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Install pinned build-tools
+        run: |
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "build-tools;36.0.0" > /dev/null
+          bt="$ANDROID_HOME/build-tools/36.0.0"
+          test -x "$bt/aapt2" && test -x "$bt/apksigner" || { echo "::error::build-tools 36.0.0 did not install"; exit 1; }
+          echo "BUILD_TOOLS=$bt" >> "$GITHUB_ENV"
+
+      - name: Find the pull request and download the preview
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_ID: ${{ github.event.workflow_run.id }}
+          RUN_NUMBER: ${{ github.event.workflow_run.run_number }}
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+          EVENT_PR_NUMBER: ${{ github.event.workflow_run.pull_requests[0].number }}
+        run: |
+          [[ "$HEAD_SHA" =~ ^[0-9a-f]{40}$ ]] || { echo "::error::Unexpected commit id"; exit 1; }
+          [[ "$RUN_NUMBER" =~ ^[0-9]+$ ]] || { echo "::error::Unexpected run number"; exit 1; }
+          pr_number="$EVENT_PR_NUMBER"
+          if ! [[ "$pr_number" =~ ^[0-9]+$ ]]; then
+            pr_number=$(gh api --paginate "repos/${GITHUB_REPOSITORY}/pulls?state=open&per_page=100" \
+              --jq ".[] | select(.head.sha == \"${HEAD_SHA}\" and .head.repo.full_name == \"${GITHUB_REPOSITORY}\") | .number" | head -n 1)
+          fi
+          if ! [[ "$pr_number" =~ ^[0-9]+$ ]]; then
+            echo "::warning::No open pull request for this commit; nothing published."
+            exit 0
+          fi
+          gh run download "$RUN_ID" --repo "$GITHUB_REPOSITORY" --name ember-preview-unsigned --dir "$RUNNER_TEMP/unsigned"
+          version="$(head -n 1 "$RUNNER_TEMP/unsigned/version.txt")"
+          [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "::error::Unexpected version '$version'"; exit 1; }
+          {
+            echo "PR_NUMBER=$pr_number"
+            echo "PREVIEW_VERSION=$version"
+            echo "PREVIEW_CODE=$((100000 + RUN_NUMBER))"
+          } >> "$GITHUB_ENV"
+
+      - name: Say so when the preview key is missing
+        if: env.PR_NUMBER != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          HAS_KEY: ${{ secrets.EMBER_PREVIEW_KEYSTORE_BASE64 != '' && secrets.EMBER_PREVIEW_SIGNING_PASSWORD != '' }}
+        run: |
+          if [ "$HAS_KEY" != "true" ]; then
+            message="No Ember Preview for this change yet: the preview signing secrets are missing in the repository settings."
+            already=$(gh api --paginate "repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/comments?per_page=100" \
+              --jq ".[] | select(.user.login == \"${BOT_LOGIN}\" and .body == \"${message}\") | .id" | wc -l)
+            if [ "$already" -eq 0 ]; then
+              gh pr comment "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --body "$message"
+            fi
+            echo "::warning::$message"
+            echo "SKIP=true" >> "$GITHUB_ENV"
+          fi
+
+      - name: Inspect the preview (before any key is loaded)
+        if: env.PR_NUMBER != '' && env.SKIP != 'true'
+        run: |
+          apk="$(find "$RUNNER_TEMP/unsigned" -type f -name '*.apk' | head -n 1)"
+          [ -n "$apk" ] || { echo "::error::No APK"; exit 1; }
+          sha="$(scripts/inspect-apk.sh "$apk" io.github.waiphy0aung.ember.preview "$PREVIEW_CODE" "${PREVIEW_VERSION}-preview" "$EXPECTED_TARGET_SDK" | tail -n 1)"
+          echo "APPROVED_SHA256=$sha" >> "$GITHUB_ENV"
+          echo "APK_PATH=$apk" >> "$GITHUB_ENV"
+
+      - name: Make sure the checkout is untouched
+        if: env.PR_NUMBER != '' && env.SKIP != 'true'
+        run: |
+          if [ -n "$(git status --porcelain)" ]; then
+            echo "::error::The checkout changed after download; refusing to sign"
+            exit 1
+          fi
+
+      - name: Sign with the preview key
+        if: env.PR_NUMBER != '' && env.SKIP != 'true'
+        env:
+          KEYSTORE_BASE64: ${{ secrets.EMBER_PREVIEW_KEYSTORE_BASE64 }}
+          SIGNING_PASSWORD: ${{ secrets.EMBER_PREVIEW_SIGNING_PASSWORD }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/signed"
+          scripts/sign-apk.sh "$APK_PATH" "$RUNNER_TEMP/signed/ember-preview-${PREVIEW_VERSION}.apk" ember-preview "$APPROVED_SHA256"
+
+      - name: Publish pre-release and comment
+        if: env.PR_NUMBER != '' && env.SKIP != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_NUMBER: ${{ github.event.workflow_run.run_number }}
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          tag="preview-pr${PR_NUMBER}-${RUN_NUMBER}"
+          if gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "Preview $tag already exists; nothing to do."
+            exit 0
+          fi
+          gh release create "$tag" "$RUNNER_TEMP/signed/ember-preview-${PREVIEW_VERSION}.apk" \
+            --repo "$GITHUB_REPOSITORY" \
+            --prerelease \
+            --target "$HEAD_SHA" \
+            --title "Ember Preview ${PREVIEW_VERSION}-preview (PR #${PR_NUMBER})" \
+            --notes "Preview build for pull request #${PR_NUMBER}. Installs as Ember Preview, beside your real Ember, with its own separate data."
+          gh pr comment "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" \
+            --body "Ember Preview **${PREVIEW_VERSION}-preview** is ready to try: https://github.com/${GITHUB_REPOSITORY}/releases/tag/${tag}"

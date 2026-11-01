@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Violet icon background so the preview app is never mistaken for the real one. -->
+    <color name="launcher_background">#FF3B2A5C</color>
+</resources>
