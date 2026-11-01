@@ -1,10 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-    Warnings fail the build. Only checks that report "a newer version exists" are turned off,
-    because Dependabot proposes those updates as their own pull requests.
+    Warnings fail the build. Checks that only report "a newer version exists" are turned off:
+    Dependabot proposes library and plugin updates as their own pull requests, and raising
+    targetSdk is a planned task in the Build plan (it changes app behaviour, so it gets its own
+    pull request and phone test), not a side effect of a lint run.
 -->
 <lint>
     <issue id="GradleDependency" severity="ignore" />
     <issue id="NewerVersionAvailable" severity="ignore" />
     <issue id="AndroidGradlePluginVersion" severity="ignore" />
+    <issue id="OldTargetApi" severity="ignore" />
 </lint>
