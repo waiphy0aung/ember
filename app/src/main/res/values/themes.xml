@@ -2,6 +2,6 @@
 <resources>
     <!-- Only the window colour lives here; everything else is drawn by Compose. -->
     <style name="Theme.Ember" parent="android:Theme.Material.NoActionBar">
-        <item name="android:windowBackground">@color/ember_night</item>
+        <item name="android:windowBackground">@color/night</item>
     </style>
 </resources>

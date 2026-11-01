@@ -13,8 +13,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
 /**
- * Ember's colours. Screens read them from [EmberTheme.colors]. The only other home for colours is
- * res/values/colors.xml, used by the window background and the launcher icon, and it must match these.
+ * Ember's colours. Screens read them from [EmberTheme.colors]. The only other homes for colours are
+ * res/values/colors.xml (window background and launcher icon, same names and values as here) and
+ * the preview build's violet launcher background in src/preview/res/values/colors.xml.
  */
 @Immutable
 data class EmberColors(

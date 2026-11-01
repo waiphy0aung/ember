@@ -24,10 +24,11 @@ The full specification is the "Ember — Requirements" doc (tabs: Requirements, 
 - `./gradlew check :app:assemblePreview` is what CI runs on every pull request (lint with warnings as errors, unit tests, Kotlin warnings as errors).
 - Build types: `debug` (`.debug`), `release` (the real app), `preview` (`.preview`, "Ember Preview", separate data, violet icon).
 - Signing, three workflows:
-  - Gradle never signs anything and never sees a key: release and preview are built unsigned, then `scripts/sign-apk.sh` signs them with apksigner after checking the package name and that there is no internet permission.
+  - Gradle never signs anything and never sees a key: release and preview are built unsigned, `scripts/inspect-apk.sh` checks the package, version, target SDK and Ember's permission allowlist on a machine with no keys, and `scripts/sign-apk.sh` signs only that exact file (matched by sha256) with apksigner.
   - `ci.yml` runs pull request code with **no secrets** and a read-only token, and uploads an unsigned Ember Preview with its version name.
   - `publish-preview.yml` runs main's copy via `workflow_run`, signs that APK with the **preview-only key** (`EMBER_PREVIEW_KEYSTORE_BASE64`, `EMBER_PREVIEW_SIGNING_PASSWORD`, alias `ember-preview`) and publishes a pre-release.
-  - `release.yml` runs only on main in two jobs on separate machines: `build` runs Gradle with no secrets; `sign-and-publish` never runs Gradle and signs with the **release key** (`EMBER_KEYSTORE_BASE64`, `EMBER_SIGNING_PASSWORD`, alias `ember`).
+  - `release.yml` runs only on main in three jobs on separate machines: `build` (Gradle, no secrets), `inspect` (no secrets) and `sign-and-publish` (apksigner only, **release key**: `EMBER_KEYSTORE_BASE64`, `EMBER_SIGNING_PASSWORD`, alias `ember`). The version always comes from main's `VERSION` plus the run number, never from build output.
+  - Raising `targetSdk` also means raising `EXPECTED_TARGET_SDK` in both signing workflows.
   - Signing jobs use pinned build-tools 36.0.0 and must never run Gradle or any project build code.
   - Never give a workflow that runs pull request code access to a secret. Claude cannot read or write these secrets; only the owner can. Never commit a keystore or password.
 - Versions: CI sets `EMBER_VERSION_CODE` and `EMBER_VERSION_NAME`.
